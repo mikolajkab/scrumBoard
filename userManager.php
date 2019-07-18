@@ -9,38 +9,62 @@ function __construct($db_manager){
 }
 
 private function userExists($user_name, $conn){
-    $sql = "SELECT * FROM mikolajkabacinski.users 
+    $sql = "SELECT * FROM zaipw.users_ 
             WHERE user_name = '$user_name'";
     $result = $conn->query($sql);
     return ($result->num_rows > 0);
 }
 
 private function checkUserAndPasswd($user_name, $user_password, $conn){
-    $sql = "SELECT * FROM mikolajkabacinski.users 
+    $sql = "SELECT * FROM zaipw.users_ 
             WHERE user_name = '$user_name' AND user_password = '$user_password'";
     $result = $conn->query($sql);
     return ($result->num_rows == 1);
 }
 
 private function clearUserLoginEntry($user_name_checked, $conn){
-    $sql = "DELETE FROM mikolajkabacinski.loggedusers
+    $sql = "DELETE FROM zaipw.loggedusers_
             WHERE user_name = '$user_name_checked'";
     return $result = $conn->query($sql);
 }
 
 private function insertUserLoginEntry($user_name_checked, $conn){
     $sesion_id = session_id();
-    $sql = "INSERT INTO mikolajkabacinski.loggedusers(session_id, user_name)
+    $sql = "INSERT INTO zaipw.loggedusers_(session_id, user_name)
             VALUES ('$sesion_id', '$user_name_checked')";
     return $result = $conn->query($sql);
 }
 
 private function getUserName($session_id, $conn){
-    $sql = "SELECT user_name FROM mikolajkabacinski.loggedusers
+    $sql = "SELECT user_name FROM zaipw.loggedusers_
     WHERE session_id = '$session_id'";
     $result = $conn->query($sql);
     $row = $result->fetch_assoc();
     return $row["user_name"];
+}
+
+public function readTextField($text_field_id){
+    $conn = $this->dbManager->openConnection();
+    $sql = "SELECT * FROM zaipw.text_fields_ 
+            WHERE text_field_id = $text_field_id";
+    $result = $conn->query($sql);
+    if($result === FALSE)
+        throw new Exception('SQL query cannot be executed.');
+    if(($row = $result->fetch_assoc()) === NULL)
+        echo "no data"; 
+    return $row["text_field"];
+}
+
+public function writeTextField($text_field_id, $text){
+    $conn = $this->dbManager->openConnection();
+    $text_checked = $conn->real_escape_string($text);
+    $sql = "UPDATE zaipw.text_fields_
+            SET text_field = '$text'
+            WHERE text_field_id = $text_field_id";
+    $result = $conn->query($sql);
+    if($result === FALSE)
+        throw new Exception('SQL query cannot be executed.');
+    return TRUE;
 }
 
 public function findUserName($session_id, $conn = NULL){
@@ -50,8 +74,8 @@ public function findUserName($session_id, $conn = NULL){
     }
     try{
         $session_id_checked = $conn->real_escape_string($session_id);
-        $select_query = "SELECT * FROM mikolajkabacinski.loggedusers WHERE session_id = '$session_id_checked'";
-        $result = $conn->query($select_query);
+        $sql = "SELECT * FROM zaipw.loggedusers_ WHERE session_id = '$session_id_checked'";
+        $result = $conn->query($sql);
         if($result === FALSE)
             throw new Exception('SQL query cannot be executed.');
         if(($row = $result->fetch_assoc()) === NULL)
@@ -70,21 +94,23 @@ public function findUserName($session_id, $conn = NULL){
     return  $user_name;
 }
 
-public function createAccount($user_name, $user_password, $user_password_repeat){
-    if($user_name == '' or $user_password == '' or $user_password_repeat == "")
+public function createAccount($user_name, $user_password, $user_password_repeat, $email){
+    if($user_name == '' or $user_password == '' or $user_password_repeat == "" or $email == '')
         throw new Exception('Incorrect input data.');
     if($user_password != $user_password_repeat)
         throw new Exception('Passwords are not the same.');      
     $conn = $this->dbManager->openConnection();
     $user_name_checked = $conn->real_escape_string($user_name);
+    $email_checked = $conn->real_escape_string($email);
     $user_password_md5 = md5($user_password);
     
     try{
         if($this->userExists($user_name_checked, $conn)){
+            // echo "Account of user " . $user_name ." already exists. New account will not be created."."<br>";
             return FALSE;
             }
-        $insert_query = "INSERT INTO mikolajkabacinski.users(user_name, user_password) 
-        VALUES ('$user_name_checked', '$user_password_md5')";
+        $insert_query = "INSERT INTO zaipw.users_(user_name, user_password, user_email) 
+        VALUES ('$user_name_checked', '$user_password_md5', '$email_checked')";
         $result = $conn->query($insert_query);
         if($result === FALSE)
             throw new Exception('Data base query cannot be executed.');
@@ -96,6 +122,7 @@ public function createAccount($user_name, $user_password, $user_password_repeat)
             throw $e;      
     }
     $conn->close();
+    // echo "Created account for user " . $user_name ."<br>";
     return TRUE;
 }
 
@@ -108,6 +135,7 @@ public function login($user_name, $user_password){
     if($this->checkUserAndPasswd($user_name, $user_password_md5, $conn)===FALSE){          
         if(isset($conn))       
             $conn->close();
+        // echo "Username or password of user " . $user_name ." is incorrect. Login aborted."."<br>";
         return FALSE;
     }
 
@@ -123,6 +151,7 @@ public function login($user_name, $user_password){
     }
 
     $conn->close();
+    // echo "User " . $user_name ." was logged in."."<br>";     
     return TRUE;    
 }
 
@@ -130,7 +159,7 @@ public function checkIfUserLoggedIn($session_id){
     $conn = $this->dbManager->openConnection();      
     try{
         $session_id_checked = $conn->real_escape_string($session_id);                            
-        $select_query = "SELECT * FROM mikolajkabacinski.loggedusers 
+        $select_query = "SELECT * FROM zaipw.loggedusers_ 
                         WHERE session_id = '$session_id_checked'";        
         $result = $conn->query($select_query);        
         if($result === FALSE)          
@@ -159,7 +188,7 @@ public function logout($conn = NULL){
     try{
         $sessionid = session_id();
         $user_name = $this->getUserName($sessionid, $conn);
-        $sql = "DELETE FROM mikolajkabacinski.loggedusers 
+        $sql = "DELETE FROM zaipw.loggedusers_ 
                 WHERE session_id = '$sessionid'";
         $result = $conn->query($sql);                
         if($result === FALSE)
@@ -172,6 +201,7 @@ public function logout($conn = NULL){
     }
     if(isset($openedConnection))
     $conn->close();
+    // echo "User " . $user_name ." was logged out."."<br>";
 }
 
 public function deleteAccount($user_name){
@@ -179,7 +209,7 @@ public function deleteAccount($user_name){
     $user_name_checked = $conn->real_escape_string($user_name);
     try{
         $this->clearUserLoginEntry($user_name_checked, $conn);
-        $sql = "DELETE FROM mikolajkabacinski.users
+        $sql = "DELETE FROM zaipw.users_
                 WHERE user_name = '$user_name_checked'";
         $result = $conn->query($sql);
         if($result === FALSE)
@@ -190,6 +220,7 @@ public function deleteAccount($user_name){
         throw $e;
     }
     $conn->close();
+    // echo "User account of " . $user_name ." was removed."."<br>";
 }  
 }
 ?>

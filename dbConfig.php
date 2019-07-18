@@ -1,7 +1,7 @@
 <?php
     $servername = "localhost";
-    $username = "mikolajkab";
-    $password = "Eindhoven998!";
+    $username = "root";
+    $password = "";
     $dbManager = new DBManager($servername, $username, $password);
     // $dbManager->recreateDB();
 ?>
