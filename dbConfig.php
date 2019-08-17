@@ -1,7 +1,7 @@
 <?php
     $servername = "localhost";
-    $username = "root";
-    $password = "";
+    $username = "zaipwdb";
+    $password = "Zaipwdb1";
     $dbManager = new DBManager($servername, $username, $password);
     // $dbManager->recreateDB();
 ?>
